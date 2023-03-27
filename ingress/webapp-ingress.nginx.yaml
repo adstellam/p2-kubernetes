@@ -1,0 +1,66 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: webapp-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/auth-url: https://vouch.stoutagtech.dev/validate
+    nginx.ingress.kubernetes.io/auth-signin: "https://vouch.stoutagtech.dev/login?url=$scheme://$http_host$request_uri&vouch-failcount=$auth_resp_failcount&X-Vouch-Token=$auth_resp_jwt&error=$auth_resp_err"
+    nginx.ingress.kubernetes.io/auth-response-headers: X-Vouch-User,X-Vouch-IdP-AccessToken,X-Vouch-IdP-IdToken
+    nginx.ingress.kubernetes.io/auth-snippet: |
+      auth_request_set $auth_resp_jwt $upstream_http_x_vouch_jwt;
+      auth_request_set $auth_resp_err $upstream_http_x_vouch_err;
+      auth_request_set $auth_resp_failcount $upstream_http_x_vouch_failcount;
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+spec:
+  ingressClassName: ingress-nginx
+  rules:
+  - host: app.stoutagtech.dev
+    http:
+      paths:
+      - path: /
+        pathType: Exact
+        backend:
+          service:
+            name: nginx-service
+            port:
+              number: 8080
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: api-service
+            port:
+              number: 9876
+      - path: /fleetview
+        pathType: Prefix
+        backend:
+          service:
+            name: fleetview-service
+            port:
+              number: 9878
+      - path: /ws
+        pathType: Prefix
+        backend:
+          service:
+            name: ws-service
+            port:
+              number: 9880
+      - path: /cube
+        pathType: Prefix
+        backend:
+          service:
+            name: cube-service
+            port:
+              number: 9882
+  - host: vouch.stoutagtech.dev
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: vouch-service
+            port:
+              number: 9090

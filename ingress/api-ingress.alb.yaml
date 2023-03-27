@@ -1,0 +1,72 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: api-ingress
+  namesapce: dev
+  annotations:
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: instance 
+    alb.ingress.kubernetes.io/subnets: subnet-xxxx,subnet-xxxx
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-west-2:xxxxx:certificate/xxxxxxx
+    alb.ingress.kubernetes.io/auth-type: cognito
+    alb.ingress.kubernetes.io/auth-idp-cognito: '{"userPoolARN":"arn:aws:cognito-idp:us-west-2:xxx:userpool/xxx","userPoolClientID":"my-clientID","userPoolDomain":"my-domain"}'
+    alb.ingress.kubernetes.io/auth-idp-oidc: '{"issuer":"https://example.com","authorizationEndpoint":"https://authorization.example.com","tokenEndpoint":"https://token.example.com","userInfoEndpoint":"https://userinfo.example.com","secretName":"my-k8s-secret"}'
+    alb.ingress.kubernetes.io/auth-on-unauthenticated-request: authenticate
+    alb.ingress.kubernetes.io/auth-scope: 'email openid'
+    alb.ingress.kubernetes.io/auth-session-cookie: custom-cookie
+    alb.ingress.kubernetes.io/healthcheck-port: traffic-port
+    alb.ingress.kubernetes.io/healthcheck-path: /ping
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: '10'
+    alb.ingress.kubernetes.io/healthcheck-timeout-seconds: '8'
+    alb.ingress.kubernetes.io/success-codes: '200'
+    alb.ingress.kubernetes.io/healthy-threshold-count: '2'
+    alb.ingress.kubernetes.io/tags: Environment=dev,Team=test
+    alb.ingress.kubernetes.io/actions.rule-path1: >
+      {"type":"fixed-response","fixedResponseConfig":{"contentType":"text/plain","statusCode":"200","messageBody":"Host is www.example.com OR anno.example.com"}}
+    alb.ingress.kubernetes.io/conditions.rule-path1: >
+      [{"field":"host-header","hostHeaderConfig":{"values":["anno.example.com"]}}]
+    alb.ingress.kubernetes.io/actions.redirect-to-eks: >
+      {"type":"redirect","redirectConfig":{"host":"aws.amazon.com","path":"/eks/","port":"443","protocol":"HTTPS","query":"k=v","statusCode":"HTTP_302"}}
+    alb.ingress.kubernetes.io/actions.forward-single-tg: >
+      {"type":"forward","targetGroupARN": "arn-of-your-target-group"}
+    alb.ingress.kubernetes.io/actions.forward-multiple-tg: >
+      {"type":"forward","forwardConfig":{"targetGroups":[{"serviceName":"service-1","servicePort":"http","weight":20},{"serviceName":"service-2","servicePort":80,"weight":20},{"targetGroupARN":"arn-of-your-non-k8s-target-group","weight":60}],"targetGroupStickinessConfig":{"enabled":true,"durationSeconds":200}}}
+spec:
+  ingressClassName: alb
+  rules:
+  - host: app.stoutagtech.dev
+    http:
+      paths:
+      - path: /
+        pathType: Exact
+        backend:
+          service:
+            name: nginx-service
+            port:
+              number: 8080
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: api-service
+            port:
+              number: 9876
+      - path: /cube
+        pathType: Prefix
+        backend:
+          service:
+            name: cube-service
+            port:
+              number: 7654
+  - host: www.example.com
+    http:
+      paths:
+      - path: /path1
+        backend:
+          serviceName: rule-path1
+          servicePort: use-annotation
+      - path: /path2
+        backend:
+          serviceName: rule-path2
+          servicePort: use-annotation
